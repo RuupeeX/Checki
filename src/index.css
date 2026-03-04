@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@layer base {
+  html, body, #root {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    max-width: none; 
+  }
+
+  :root {
+    /* Fondo principal: Azul marino muy oscuro casi negro */
+    --background: 222 47% 9%;
+    --foreground: 0 0% 100%;
+    
+    /* Color principal: Azul Cian vibrante (Neón) */
+    --primary: 200 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Fondos secundarios (Inputs): Azul marino grisáceo */
+    --muted: 217 33% 15%;
+    --muted-foreground: 215 20% 65%;
+    
+    /* Bordes y focus */
+    --border: 217 33% 25%;
+    --input: 217 33% 15%;
+    --ring: 200 100% 50%;
+  }
+}
+
+@theme {
+  --font-serif: "Playfair Display", serif;
+  --font-sans: "Inter", sans-serif;
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+}
