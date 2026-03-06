@@ -11,21 +11,26 @@ import EmployeesPage     from './pages/Employee';
 export default function App() {
   const [userRole, setUserRole] = useState(null);   // null | 'admin' | 'employee'
   const [page, setPage] = useState('home'); 
+  // MEJORA: Parámetros de navegación (ej. dept desde dashboard → employees)
+  const [navParams, setNavParams] = useState({});
 
   const handleLogout = () => {
     setUserRole(null);
     setPage('home');
+    setNavParams({});
   };
 
-  const handleNav = (pageId) => {
+  // MEJORA: handleNav ahora acepta un segundo argumento opcional con parámetros
+  const handleNav = (pageId, params = {}) => {
     setPage(pageId);
+    setNavParams(params);
   };
 
   return (
     <ThemeProvider>
       {/* ── LOGIN ── */}
       {!userRole && (
-        <LoginPage onLogin={(role) => { setUserRole(role); setPage('home'); }} />
+        <LoginPage onLogin={(role) => { setUserRole(role); setPage('home'); setNavParams({}); }} />
       )}
 
       {/* ── SETTINGS & REPORTS (Comunes para Admin y Empleado) ── */}
@@ -51,9 +56,14 @@ export default function App() {
         <AdminDashboard onLogout={handleLogout} onNav={handleNav} />
       )}
       
-      {/* ── AÑADIDO: VISTA DE EMPLEADOS (Solo Admin) ── */}
+      {/* MEJORA: Pasa initialDept desde navParams cuando viene del dashboard */}
       {userRole === 'admin' && page === 'employees' && (
-        <EmployeesPage onLogout={handleLogout} onNav={handleNav} />
+        <EmployeesPage 
+          onLogout={handleLogout} 
+          onNav={handleNav} 
+          initialDept={navParams.dept || undefined}
+          key={navParams.dept || 'all'}
+        />
       )}
       
     </ThemeProvider>

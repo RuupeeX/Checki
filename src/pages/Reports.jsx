@@ -1,315 +1,590 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
-  Home, Calendar, BarChart2, Settings as SettingsIcon, LogOut,
-  CheckCircle2, Download, Search, Filter, AlertCircle, FileText, 
-  Clock, CheckCircle, XCircle, Umbrella, Stethoscope
+  Download, Search, Filter, Plus, X, Check, XCircle as XCircleIcon,
+  ChevronUp, ChevronDown, ChevronsUpDown, Users, User,
+  FileText,
 } from 'lucide-react';
-import { useTheme, useTokens } from '../contexts/Themecontext';
+import { useTokens } from '../contexts/Themecontext';
+import AppLayout from '../components/AppLayout';
+import initialReportsData, {
+  reportStatusStyles, reportTypeConfig,
+  CURRENT_EMPLOYEE, departments,
+} from '../data/reportsData';
+import { reportsSummaryCards, getInitials, avatarGradients } from '../data/mockData';
 
 // ============================================================================
-// 1. DATOS SIMULADOS (MOCKS)
+// MODAL: NEW REQUEST (Solo para empleados)
 // ============================================================================
+function NewRequestModal({ onClose, onAdd, tokens }) {
+  const [type, setType]   = useState('Vacation');
+  const [desc, setDesc]   = useState('');
+  const [date, setDate]   = useState('');
+  const [error, setError] = useState('');
 
-// Datos para las 4 tarjetas de resumen (KPIs) en la parte superior
-const summaryCards = [
-  { title: 'Total Hours', value: '156h', sub: 'This month', color: '#818cf8', bg: 'rgba(129,140,248,0.1)' },
-  { title: 'Vacation Days', value: '12 / 22', sub: 'Days remaining', color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
-  { title: 'Pending Requests', value: '2', sub: 'Needs approval', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-  { title: 'Incidents', value: '1', sub: 'Resolved', color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
-];
-
-// Base de datos estática para la tabla de reportes/solicitudes
-const reportsData = [
-  { id: 'REQ-001', date: '15 Mar 2026', type: 'Vacation', desc: 'Summer holidays trip', status: 'Approved', icon: Umbrella },
-  { id: 'REQ-002', date: '02 Mar 2026', type: 'Medical', desc: 'Dentist appointment (Morning)', status: 'Pending', icon: Stethoscope },
-  { id: 'INC-045', date: '28 Feb 2026', type: 'Incident', desc: 'Forgot to clock out', status: 'Resolved', icon: AlertCircle },
-  { id: 'REQ-003', date: '10 Feb 2026', type: 'Vacation', desc: 'Personal day', status: 'Rejected', icon: Umbrella },
-  { id: 'REP-102', date: '31 Jan 2026', type: 'Timesheet', desc: 'January Monthly Report', status: 'Approved', icon: FileText },
-];
-
-// Diccionario de estilos visuales según el estado del reporte. 
-// Define qué color, fondo e icono se usa para cada "Badge" (etiqueta).
-const statusStyles = {
-  Approved: { color: '#34d399', bg: 'rgba(52,211,153,0.1)', border: 'rgba(52,211,153,0.2)', icon: CheckCircle }, // Verde
-  Pending:  { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.2)', icon: Clock },       // Naranja
-  Resolved: { color: '#818cf8', bg: 'rgba(129,140,248,0.1)', border: 'rgba(129,140,248,0.2)', icon: CheckCircle2 },// Morado
-  Rejected: { color: '#f87171', bg: 'rgba(248,113,113,0.1)', border: 'rgba(248,113,113,0.2)', icon: XCircle },    // Rojo
-};
-
-// ============================================================================
-// 2. COMPONENTE PRINCIPAL: ReportsPage
-// ============================================================================
-export default function ReportsPage({ role = 'employee', onLogout, onNav }) {
-  // Obtenemos los colores del tema actual
-  const tokens = useTokens();
-  const { isDark } = useTheme();
-  
-  // Estado para controlar qué pestaña del filtro está activa (Por defecto: "All")
-  const [activeTab, setActiveTab] = useState('All');
-
-  // Lista de pestañas disponibles para filtrar la tabla
-  const tabs = ['All', 'Vacations', 'Medical', 'Incidents'];
-
-  // LÓGICA DEL SIDEBAR: Comprueba si el usuario es admin o empleado
-  const isAdmin = role === 'admin';
-  // Genera el menú lateral correspondiente según el rol
-  const navItems = isAdmin
-    ? [
-        { id: 'dashboard', label: 'Dashboard', Icon: Home },
-        { id: 'employees', label: 'Employees', Icon: Calendar }, // Asumiendo Users icon si lo tienes importado
-        { id: 'reports',   label: 'Reports',   Icon: BarChart2 },
-        { id: 'settings',  label: 'Settings',  Icon: SettingsIcon },
-      ]
-    : [
-        { id: 'home',      label: 'Home',      Icon: Home },
-        { id: 'schedule',  label: 'Schedule',  Icon: Calendar },
-        { id: 'reports',   label: 'Reports',   Icon: BarChart2 },
-        { id: 'settings',  label: 'Settings',  Icon: SettingsIcon },
-      ];
-
-  // LÓGICA DE FILTRADO DE LA TABLA:
-  // Si la pestaña es "All", muestra todo. Si no, filtra los reportes donde el 'type' coincida con la pestaña.
-  const filteredReports = activeTab === 'All' 
-    ? reportsData 
-    : reportsData.filter(r => r.type === activeTab || (activeTab === 'Medical' && r.type === 'Medical'));
+  const handleSubmit = () => {
+    if (!desc.trim()) { setError('Please enter a description.'); return; }
+    if (!date)        { setError('Please select a date.'); return; }
+    const d       = new Date(date);
+    const months  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const pad     = (n) => n.toString().padStart(2, '0');
+    const dateStr = `${pad(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    const nextId  = `REQ-${String(Math.floor(Math.random() * 900) + 100)}`;
+    onAdd({
+      id: nextId, date: dateStr, dateRaw: d, type, desc: desc.trim(),
+      status: 'Pending',
+      icon: reportTypeConfig[type]?.icon || FileText,
+      employee: CURRENT_EMPLOYEE, dept: 'IT',
+    });
+    onClose();
+  };
 
   return (
-    // Contenedor principal de pantalla completa
-    <div
-      className="flex h-screen overflow-hidden font-[DM_Sans,system-ui,sans-serif]"
-      style={{ background: tokens.bg, color: tokens.textPrimary }}
-    >
-      {/* Estilos globales y personalización de la barra de desplazamiento (Scrollbar) */}
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
-        * { box-sizing: border-box; }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: ${isDark ? '#2a2f3a' : '#d1d5db'}; border-radius: 2px; }
-      `}</style>
-
-      {/* ======================= SIDEBAR ======================= */}
-      <aside
-        className="flex w-[220px] shrink-0 flex-col gap-1.5 px-4 py-6"
-        style={{ background: tokens.bgSidebar, borderRight: `1px solid ${tokens.borderSide}` }}
-      >
-        {/* LOGO */}
-        <div className="mb-7 flex items-center gap-2.5 px-2">
-          <img 
-            src="./Checki_purple.png" 
-            alt="Logo CheckIn"
-            className="h-10 w-full rounded-[8px] object-contain" 
-          />
-        </div>
-
-        <p className="mb-1 px-3.5 text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: tokens.textMuted }}>
-          Menu
-        </p>
-
-        {/* Mapeo dinámico del menú lateral basado en la variable navItems (que depende del rol) */}
-        {navItems.map(({ id, label, Icon }) => {
-          const isActive = id === 'reports'; // Forzamos a que "Reports" sea la pestaña activa
-          return (
-            <button
-              key={id}
-              onClick={() => onNav?.(id)} // Llama al enrutador (App.jsx)
-              className="flex w-full items-center gap-3 rounded-[10px] px-3.5 py-2.5 text-[14px] font-medium transition-all"
-              style={{
-                background: isActive ? tokens.accentLight : 'transparent',
-                color: isActive ? tokens.accentText : tokens.textSecondary,
-                border: 'none', cursor: 'pointer',
-              }}
-              onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.background = tokens.bgHover; e.currentTarget.style.color = tokens.textPrimary; } }}
-              onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = tokens.textSecondary; } }}
-            >
-              <Icon size={15} />
-              {label}
-            </button>
-          );
-        })}
-
-        <div className="flex-1" />
-
-        {/* TARJETA DE PERFIL (Dinámica según el rol) */}
-        <div className="rounded-[12px] border p-3.5" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
-          <div className="mb-3 flex items-center gap-2.5">
-            {/* El color y las iniciales cambian dependiendo si es admin o empleado */}
-            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white ${isAdmin ? 'bg-gradient-to-br from-[#f093fb] to-[#f5576c]' : 'bg-gradient-to-br from-[#6366f1] to-[#8b5cf6]'}`}>
-              {isAdmin ? 'RM' : 'AP'}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="New Request">
+      <div className="w-[460px] rounded-[20px] border p-7 shadow-[0_24px_64px_rgba(0,0,0,0.5)]" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-gradient-to-br from-[#6366f1] to-[#8b5cf6]">
+              <Plus size={15} className="text-white" />
             </div>
-            <div>
-              <p className="text-[13px] font-semibold" style={{ color: tokens.textPrimary }}>{isAdmin ? 'Rosa Muñoz' : 'Antonio Pérez'}</p>
-              <p className="text-[11px]" style={{ color: tokens.textSecondary }}>{isAdmin ? 'Administrator' : 'Web Designer'}</p>
-            </div>
+            <p className="text-[16px] font-semibold" style={{ color: tokens.textPrimary }}>New Request</p>
           </div>
-          {/* BOTÓN CERRAR SESIÓN */}
-          <button
-            onClick={onLogout}
-            className="flex w-full items-center justify-center gap-2 rounded-[8px] border py-1.5 text-[12px] font-medium transition-all"
-            style={{ borderColor: tokens.border, color: tokens.textSecondary, background: 'transparent', cursor: 'pointer' }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#f87171'; e.currentTarget.style.color = '#f87171'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = tokens.border; e.currentTarget.style.color = tokens.textSecondary; }}
-          >
-            <LogOut size={12} /> Log out
+          <button onClick={onClose} style={{ color: tokens.textSecondary }} className="transition-colors hover:text-[#e2e8f0]" aria-label="Close">
+            <X size={18} />
           </button>
         </div>
-      </aside>
 
-      {/* ======================= CONTENIDO PRINCIPAL ======================= */}
-      <main className="flex-1 overflow-auto p-8">
-        <div className="mx-auto max-w-[1050px]">
-          
-          {/* CABECERA Y BOTÓN DE EXPORTAR */}
+        <div className="flex flex-col gap-4">
+          {/* Type */}
+          <div>
+            <label className="mb-2 block text-[12px] font-medium" style={{ color: tokens.textSecondary }}>Type</label>
+            <div className="grid grid-cols-4 gap-2">
+              {Object.entries(reportTypeConfig).map(([key, cfg]) => {
+                const I = cfg.icon;
+                return (
+                  <button key={key} onClick={() => setType(key)}
+                    className={`flex flex-col items-center gap-1.5 rounded-[10px] border py-2.5 text-[11px] font-semibold transition-all
+                      ${type === key ? 'border-[#6366f1]/40 bg-[#6366f1]/15 text-[#818cf8]' : 'hover:border-[#2a2f3a]'}`}
+                    style={{ borderColor: type === key ? undefined : tokens.border, color: type === key ? undefined : tokens.textSecondary }}>
+                    <I size={16} />{cfg.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          {/* Date */}
+          <div>
+            <label className="mb-1.5 block text-[12px] font-medium" style={{ color: tokens.textSecondary }}>Date *</label>
+            <input type="date" value={date} onChange={e => { setDate(e.target.value); setError(''); }}
+              className="w-full rounded-[10px] border px-3.5 py-2.5 text-[13px] outline-none transition-colors focus:border-[#6366f1] [color-scheme:dark]"
+              style={{ background: tokens.bgInput, borderColor: tokens.border, color: tokens.textPrimary }} />
+          </div>
+          {/* Desc */}
+          <div>
+            <label className="mb-1.5 block text-[12px] font-medium" style={{ color: tokens.textSecondary }}>Description *</label>
+            <input type="text" value={desc} onChange={e => { setDesc(e.target.value); setError(''); }}
+              placeholder="Brief description..."
+              className="w-full rounded-[10px] border px-3.5 py-2.5 text-[13px] outline-none transition-colors focus:border-[#6366f1]"
+              style={{ background: tokens.bgInput, borderColor: tokens.border, color: tokens.textPrimary }} />
+          </div>
+          {error && <p className="text-[12px] text-[#f87171]">{error}</p>}
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2.5">
+          <button onClick={onClose} className="rounded-[10px] border px-4 py-2 text-[13px] font-medium transition-colors" style={{ borderColor: tokens.border, color: tokens.textSecondary }}>Cancel</button>
+          <button onClick={handleSubmit}
+            className="rounded-[10px] px-5 py-2 text-[13px] font-semibold text-white transition-all hover:-translate-y-0.5"
+            style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', boxShadow: '0 4px 16px rgba(99,102,241,0.3)', border: 'none', cursor: 'pointer' }}>
+            Submit request
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// MODAL: CONFIRMAR ACCIÓN DEL ADMIN (Aprobar / Rechazar)
+// ============================================================================
+function ConfirmModal({ action, request, onConfirm, onClose, tokens }) {
+  const isApprove = action === 'approve';
+  const color     = isApprove ? '#34d399' : '#f87171';
+  const bgGrad    = isApprove ? 'linear-gradient(135deg,#16a34a,#15803d)' : 'linear-gradient(135deg,#ef4444,#dc2626)';
+  const shadow    = isApprove ? '0 4px 16px rgba(22,163,74,0.3)' : '0 4px 16px rgba(239,68,68,0.3)';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true">
+      <div className="w-[400px] rounded-[20px] border p-7 shadow-[0_24px_64px_rgba(0,0,0,0.5)]" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
+        <div className="mb-5 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[12px]" style={{ background: `${color}15`, border: `1.5px solid ${color}30` }}>
+            {isApprove ? <Check size={18} style={{ color }} /> : <XCircleIcon size={18} style={{ color }} />}
+          </div>
+          <div>
+            <p className="text-[16px] font-semibold" style={{ color: tokens.textPrimary }}>
+              {isApprove ? 'Approve Request' : 'Reject Request'}
+            </p>
+            <p className="mt-0.5 text-[12px]" style={{ color: tokens.textSecondary }}>This action will notify the employee.</p>
+          </div>
+        </div>
+
+        {/* Request summary */}
+        <div className="mb-6 rounded-[12px] border p-4" style={{ background: tokens.bgInput, borderColor: tokens.border }}>
+          <div className="flex items-center justify-between">
+            <p className="text-[13px] font-semibold" style={{ color: tokens.textPrimary }}>{request.id}</p>
+            <span className="text-[11px] font-medium" style={{ color: tokens.textSecondary }}>{request.date}</span>
+          </div>
+          <p className="mt-1 text-[12px]" style={{ color: tokens.textSecondary }}>{request.employee} · {request.dept}</p>
+          <p className="mt-1 text-[12px]" style={{ color: tokens.textSecondary }}>{request.type}: {request.desc}</p>
+        </div>
+
+        <div className="flex justify-end gap-2.5">
+          <button onClick={onClose} className="rounded-[10px] border px-4 py-2 text-[13px] font-medium transition-colors" style={{ borderColor: tokens.border, color: tokens.textSecondary }}>Cancel</button>
+          <button onClick={onConfirm}
+            className="rounded-[10px] px-5 py-2 text-[13px] font-semibold text-white transition-all hover:-translate-y-0.5"
+            style={{ background: bgGrad, boxShadow: shadow, border: 'none', cursor: 'pointer' }}>
+            {isApprove ? 'Approve' : 'Reject'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// SORT ICON
+// ============================================================================
+function SortIcon({ col, sortCol, sortDir, tokens }) {
+  if (sortCol !== col) return <ChevronsUpDown size={12} style={{ color: tokens.textMuted }} />;
+  return sortDir === 'asc'
+    ? <ChevronUp size={12} className="text-[#818cf8]" />
+    : <ChevronDown size={12} className="text-[#818cf8]" />;
+}
+
+// ============================================================================
+// COMPONENTE PRINCIPAL
+// ============================================================================
+export default function ReportsPage({ role = 'employee', onLogout, onNav }) {
+  const tokens  = useTokens();
+  const isAdmin = role === 'admin';
+
+  const [reports,      setReports]      = useState(initialReportsData);
+  const [activeTab,    setActiveTab]    = useState('All');
+  const [search,       setSearch]       = useState('');
+  const [showModal,    setShowModal]    = useState(false);
+  const [sortCol,      setSortCol]      = useState('dateRaw');
+  const [sortDir,      setSortDir]      = useState('desc');
+  // Admin: filtro por departamento
+  const [deptFilter,   setDeptFilter]   = useState('All');
+  // Admin: modal de confirmar acción
+  const [confirmAction, setConfirmAction] = useState(null); // { action: 'approve'|'reject', request }
+
+  const tabs = ['All', 'Vacations', 'Medical', 'Incidents', 'Timesheet'];
+
+  // ── Sorting ──
+  const handleSort = (col) => {
+    if (sortCol === col) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); }
+    else { setSortCol(col); setSortDir('asc'); }
+  };
+
+  // ── KPI dinámicos ──
+  const kpiCards = useMemo(() => {
+    const visibleReports = isAdmin ? reports : reports.filter(r => r.employee === CURRENT_EMPLOYEE);
+    const pending  = visibleReports.filter(r => r.status === 'Pending').length;
+    const approved = visibleReports.filter(r => r.status === 'Approved').length;
+    const rejected = visibleReports.filter(r => r.status === 'Rejected').length;
+    const total    = visibleReports.length;
+
+    if (isAdmin) {
+      return [
+        { title: 'Total Requests',    value: String(total),    sub: 'All employees', color: '#818cf8' },
+        { title: 'Pending Review',    value: String(pending),  sub: 'Needs your action', color: '#f59e0b' },
+        { title: 'Approved',          value: String(approved), sub: 'This period',   color: '#34d399' },
+        { title: 'Rejected',          value: String(rejected), sub: 'This period',   color: '#f87171' },
+      ];
+    }
+    return [
+      { title: 'My Requests',        value: String(total),    sub: 'Total submitted', color: '#818cf8' },
+      { title: 'Pending',            value: String(pending),  sub: 'Awaiting review', color: '#f59e0b' },
+      { title: 'Approved',           value: String(approved), sub: 'Accepted',        color: '#34d399' },
+      { title: 'Rejected',           value: String(rejected), sub: 'Declined',        color: '#f87171' },
+    ];
+  }, [reports, isAdmin]);
+
+  // ── Filtrado + Búsqueda + Ordenación ──
+  const filtered = useMemo(() => {
+    let rows = [...reports];
+
+    // Empleado: solo sus propios reports
+    if (!isAdmin) {
+      rows = rows.filter(r => r.employee === CURRENT_EMPLOYEE);
+    }
+
+    // Admin: filtro por departamento
+    if (isAdmin && deptFilter !== 'All') {
+      rows = rows.filter(r => r.dept === deptFilter);
+    }
+
+    // Tab de tipo
+    if (activeTab !== 'All') {
+      const map = { Vacations: 'Vacation', Medical: 'Medical', Incidents: 'Incident', Timesheet: 'Timesheet' };
+      rows = rows.filter(r => r.type === map[activeTab]);
+    }
+
+    // Búsqueda
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      rows = rows.filter(r =>
+        r.id.toLowerCase().includes(q) || r.type.toLowerCase().includes(q) ||
+        r.desc.toLowerCase().includes(q) || r.status.toLowerCase().includes(q) ||
+        r.date.toLowerCase().includes(q) || r.employee.toLowerCase().includes(q) ||
+        r.dept.toLowerCase().includes(q)
+      );
+    }
+
+    // Ordenar
+    rows.sort((a, b) => {
+      let va = a[sortCol]; let vb = b[sortCol];
+      if (sortCol === 'dateRaw') { va = va.getTime(); vb = vb.getTime(); }
+      else { va = String(va).toLowerCase(); vb = String(vb).toLowerCase(); }
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return rows;
+  }, [reports, activeTab, search, sortCol, sortDir, isAdmin, deptFilter]);
+
+  // ── Acciones ──
+  const addReport = (r) => setReports(prev => [r, ...prev]);
+
+  const handleStatusChange = (id, newStatus) => {
+    setReports(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
+    setConfirmAction(null);
+  };
+
+  // Empleado: cancelar petición pendiente propia
+  const handleCancel = (id) => {
+    setReports(prev => prev.filter(r => r.id !== id));
+  };
+
+  // ── Column header ──
+  const ColHeader = ({ col, label }) => (
+    <button onClick={() => handleSort(col)}
+      className="flex items-center gap-1 text-left text-[11px] font-semibold uppercase tracking-[0.05em] transition-colors hover:text-[#818cf8]"
+      style={{ color: tokens.textMuted }}>
+      {label}
+      <SortIcon col={col} sortCol={sortCol} sortDir={sortDir} tokens={tokens} />
+    </button>
+  );
+
+  // ── Grid proporcional según rol ──
+  // Admin:    Employee | Type | Description | Status | Actions
+  // Employee: ID/Date  | Type | Description | Status | Actions
+  const gridCols = isAdmin
+    ? 'grid-cols-[minmax(200px,2.2fr)_minmax(100px,1.2fr)_minmax(160px,2.5fr)_minmax(100px,1fr)_minmax(180px,1.5fr)]'
+    : 'grid-cols-[minmax(120px,1.2fr)_minmax(120px,1.5fr)_minmax(200px,3fr)_minmax(100px,1.2fr)_minmax(80px,0.8fr)]';
+
+  return (
+    <AppLayout role={role} activePage="reports" onNav={onNav} onLogout={onLogout}>
+      <div className="p-8">
+        <div className="mx-auto max-w-[1200px]">
+
+          {/* ── HEADER ── */}
           <div className="mb-8 flex items-end justify-between">
             <div>
-              <h1 className="text-[26px] font-semibold tracking-[-0.02em]" style={{ color: tokens.textPrimary }}>
-                Reports & Requests
-              </h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-[26px] font-semibold tracking-[-0.02em]" style={{ color: tokens.textPrimary }}>
+                  {isAdmin ? 'Team Reports' : 'My Reports'}
+                </h1>
+                {isAdmin && (
+                  <span className="flex items-center gap-1.5 rounded-[8px] border px-2.5 py-1 text-[11px] font-bold" style={{ borderColor: 'rgba(99,102,241,0.2)', background: 'rgba(99,102,241,0.1)', color: '#818cf8' }}>
+                    <Users size={12} /> Admin View
+                  </span>
+                )}
+                {!isAdmin && (
+                  <span className="flex items-center gap-1.5 rounded-[8px] border px-2.5 py-1 text-[11px] font-bold" style={{ borderColor: 'rgba(129,140,248,0.2)', background: 'rgba(129,140,248,0.1)', color: '#818cf8' }}>
+                    <User size={12} /> {CURRENT_EMPLOYEE}
+                  </span>
+                )}
+              </div>
               <p className="mt-1 text-[14px]" style={{ color: tokens.textSecondary }}>
-                Track your timesheets, absences, and logged incidents.
+                {isAdmin
+                  ? 'Review and manage all employee requests and incidents.'
+                  : 'Track your requests, absences, and logged incidents.'}
               </p>
             </div>
-            
-            <button 
-              className="flex items-center gap-2 rounded-[10px] border px-4 py-2.5 text-[13px] font-semibold transition-all hover:bg-white/5"
-              style={{ borderColor: tokens.border, color: tokens.textPrimary, background: tokens.bgCard }}
-            >
-              <Download size={15} /> Export PDF/CSV
-            </button>
+            <div className="flex items-center gap-2.5">
+              {/* Export: solo admin */}
+              {isAdmin && (
+                <button className="flex items-center gap-2 rounded-[10px] border px-4 py-2.5 text-[13px] font-semibold transition-all hover:bg-white/5"
+                  style={{ borderColor: tokens.border, background: tokens.bgCard, color: tokens.textPrimary }}>
+                  <Download size={15} /> Export
+                </button>
+              )}
+              {/* New Request: solo empleado */}
+              {!isAdmin && (
+                <button onClick={() => setShowModal(true)}
+                  className="flex items-center gap-2 rounded-[10px] px-4 py-2.5 text-[13px] font-bold text-white transition-all hover:-translate-y-0.5"
+                  style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', boxShadow: '0 4px 16px rgba(99,102,241,0.25)', border: 'none', cursor: 'pointer' }}>
+                  <Plus size={15} strokeWidth={2.5} /> New Request
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* TARJETAS DE RESUMEN KPI (Mapeadas desde summaryCards) */}
+          {/* ── KPI CARDS ── */}
           <div className="mb-8 grid grid-cols-4 gap-4">
-            {summaryCards.map((card, i) => (
+            {kpiCards.map((card, i) => (
               <div key={i} className="rounded-[16px] border p-5" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
-                <p className="mb-3 text-[12px] font-semibold uppercase tracking-[0.05em]" style={{ color: tokens.textSecondary }}>
-                  {card.title}
-                </p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-[32px] font-bold leading-none tracking-[-0.02em]" style={{ color: card.color }}>
-                    {card.value}
-                  </span>
-                </div>
+                <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.06em]" style={{ color: tokens.textSecondary }}>{card.title}</p>
+                <p className="text-[30px] font-bold leading-none tracking-[-0.02em]" style={{ color: card.color }}>{card.value}</p>
                 <p className="mt-2 text-[11px]" style={{ color: tokens.textMuted }}>{card.sub}</p>
               </div>
             ))}
           </div>
 
-          {/* CONTENEDOR DE LA TABLA Y FILTROS */}
-          <div className="rounded-[20px] border" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
-            
-            {/* TOOLBAR: Pestañas de filtrado y Búsqueda */}
-            <div className="flex items-center justify-between border-b px-6 py-4" style={{ borderColor: tokens.border }}>
-              
-              {/* Pestañas (Tabs) */}
-              <div className="flex gap-2">
-                {tabs.map(tab => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)} // Cambia el estado, lo que dispara el re-render y filtra la tabla
-                    className="rounded-[8px] px-4 py-1.5 text-[13px] font-medium transition-all"
-                    style={{
-                      // Resalta el botón si es la pestaña activa actualmente
-                      background: activeTab === tab ? tokens.accentLight : 'transparent',
-                      color: activeTab === tab ? tokens.accentText : tokens.textSecondary,
-                    }}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-              
-              {/* Controles de Búsqueda y Filtro adicional */}
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: tokens.textMuted }} />
-                  <input 
-                    type="text" 
-                    placeholder="Search reports..." 
-                    className="w-[200px] rounded-[8px] border py-1.5 pl-9 pr-3 text-[12px] outline-none"
-                    style={{ background: tokens.bgInput, borderColor: tokens.border, color: tokens.textPrimary }}
-                  />
+          {/* ── TABLE CARD ── */}
+          <div className="rounded-[20px] border overflow-hidden" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
+
+            {/* Toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b px-6 py-4" style={{ borderColor: tokens.borderSide }}>
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Tabs de tipo */}
+                <div className="flex gap-1" role="tablist" aria-label="Filter by type">
+                  {tabs.map(tab => (
+                    <button key={tab} onClick={() => setActiveTab(tab)} role="tab" aria-selected={activeTab === tab}
+                      className={`rounded-[8px] px-3 py-1.5 text-[12px] font-semibold transition-all
+                        ${activeTab === tab ? 'bg-[#6366f1]/15 text-[#818cf8]' : 'hover:bg-white/5'}`}
+                      style={{ color: activeTab === tab ? undefined : tokens.textSecondary }}>
+                      {tab}
+                    </button>
+                  ))}
                 </div>
-                <button className="flex h-8 w-8 items-center justify-center rounded-[8px] border transition-colors hover:bg-white/5" style={{ borderColor: tokens.border, color: tokens.textSecondary }}>
-                  <Filter size={14} />
-                </button>
+
+                {/* Admin: filtro por departamento */}
+                {isAdmin && (
+                  <>
+                    <div className="h-4 w-px" style={{ background: tokens.border }} />
+                    <div className="flex gap-0.5">
+                      {departments.map(d => (
+                        <button key={d} onClick={() => setDeptFilter(d)}
+                          className={`rounded-[6px] px-2 py-1 text-[11px] font-semibold transition-all
+                            ${deptFilter === d ? 'bg-[#6366f1]/15 text-[#818cf8]' : 'hover:bg-white/5'}`}
+                          style={{ color: deptFilter === d ? undefined : tokens.textMuted }}>
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Search */}
+              <div className="relative">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: tokens.textMuted }} aria-hidden="true" />
+                <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                  placeholder={isAdmin ? 'Search by name, dept...' : 'Search reports...'}
+                  aria-label="Search reports"
+                  className="w-[200px] rounded-[8px] border py-1.5 pl-8 pr-3 text-[12px] outline-none transition-colors focus:border-[#6366f1]"
+                  style={{ background: tokens.bgInput, borderColor: tokens.border, color: tokens.textPrimary }} />
+                {search && (
+                  <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 transition-colors hover:text-[#e2e8f0]" style={{ color: tokens.textMuted }} aria-label="Clear search">
+                    <X size={12} />
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* TABLA DE RESULTADOS */}
-            <div className="px-6 py-2">
-              
-              {/* Cabecera de la tabla (Usamos Grid para alinear perfectamente las columnas) */}
-              <div className="grid grid-cols-[1fr_2fr_3fr_1.5fr] gap-4 py-3 text-[11px] font-semibold uppercase tracking-[0.05em]" style={{ color: tokens.textMuted }}>
-                <span>ID / Date</span>
-                <span>Type</span>
-                <span>Description</span>
-                <span className="text-right">Status</span>
-              </div>
+            {/* Table */}
+            <div className="px-6 py-1">
 
-              {/* Filas de reportes */}
+              {/* Column headers */}
+              {isAdmin ? (
+                <div className={`grid ${gridCols} items-center gap-5 py-3.5`}>
+                  <ColHeader col="employee" label="Employee" />
+                  <ColHeader col="type"     label="Type" />
+                  <ColHeader col="desc"     label="Description" />
+                  <ColHeader col="status"   label="Status" />
+                  <span className="text-right text-[11px] font-semibold uppercase tracking-[0.05em]" style={{ color: tokens.textMuted }}>Actions</span>
+                </div>
+              ) : (
+                <div className={`grid ${gridCols} items-center gap-5 py-3.5`}>
+                  <ColHeader col="id"     label="ID / Date" />
+                  <ColHeader col="type"   label="Type" />
+                  <ColHeader col="desc"   label="Description" />
+                  <ColHeader col="status" label="Status" />
+                  <span className="text-right text-[11px] font-semibold uppercase tracking-[0.05em]" style={{ color: tokens.textMuted }}>Actions</span>
+                </div>
+              )}
+
+              {/* Rows */}
               <div className="flex flex-col">
-                {/* Mapeamos el array 'filteredReports' (ya filtrado por las pestañas) */}
-                {filteredReports.map((row, i) => {
-                  const StatusIcon = statusStyles[row.status].icon; // Obtenemos el icono correspondiente al estado
-                  const RowIcon = row.icon; // Icono del tipo de reporte (Paraguas, Documento, etc)
-                  
+                {filtered.map((row) => {
+                  const ss = reportStatusStyles[row.status];
+                  const SI = ss.icon;
+                  const RI = row.icon;
+                  const isPending = row.status === 'Pending';
+
+                  if (isAdmin) {
+                    // ── ADMIN ROW ──
+                    const empIdx = initialReportsData.findIndex(r => r.employee === row.employee);
+                    return (
+                      <div
+                        key={row.id}
+                        className={`group grid ${gridCols} items-center gap-5 border-b py-3.5 last:border-none rounded-[10px] -mx-3 px-3 transition-all duration-150`}
+                        style={{ borderColor: tokens.borderSide }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = tokens.bgHover; e.currentTarget.style.borderColor = 'transparent'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = tokens.borderSide; }}
+                      >
+                        {/* Employee + Dept */}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br ${avatarGradients[Math.abs(empIdx) % avatarGradients.length]} text-[11px] font-bold text-white shadow-sm`} aria-hidden="true">
+                            {getInitials(row.employee)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-[13px] font-semibold leading-tight" style={{ color: tokens.textPrimary }}>{row.employee}</p>
+                            <p className="mt-0.5 text-[11px] leading-tight" style={{ color: tokens.textMuted }}>
+                              {row.dept} · {row.date}
+                            </p>
+                          </div>
+                        </div>
+                        {/* Type */}
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px]" style={{ background: tokens.bgInput }}>
+                            <RI size={13} style={{ color: tokens.textSecondary }} />
+                          </div>
+                          <span className="text-[12px] font-medium" style={{ color: tokens.textPrimary }}>{row.type}</span>
+                        </div>
+                        {/* Description */}
+                        <p className="truncate text-[12px] leading-relaxed" style={{ color: tokens.textSecondary }}>{row.desc}</p>
+                        {/* Status badge */}
+                        <div>
+                          <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-[3px] ${ss.bg} ${ss.border} ${ss.text}`}>
+                            <SI size={11} strokeWidth={2.5} />
+                            <span className="text-[10px] font-bold tracking-wide">{row.status}</span>
+                          </span>
+                        </div>
+                        {/* Actions */}
+                        <div className="flex justify-end gap-2">
+                          {isPending ? (
+                            <>
+                              <button
+                                onClick={() => setConfirmAction({ action: 'approve', request: row })}
+                                className="flex h-[30px] items-center gap-1.5 rounded-[8px] border px-3 text-[11px] font-semibold transition-all hover:shadow-[0_4px_12px_rgba(52,211,153,0.2)] hover:-translate-y-0.5 active:translate-y-0"
+                                style={{ borderColor: 'rgba(52,211,153,0.3)', background: 'rgba(52,211,153,0.08)', color: '#34d399' }}
+                                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(52,211,153,0.15)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(52,211,153,0.08)'; }}
+                                aria-label={`Approve request ${row.id}`}>
+                                <Check size={12} /> Approve
+                              </button>
+                              <button
+                                onClick={() => setConfirmAction({ action: 'reject', request: row })}
+                                className="flex h-[30px] items-center gap-1.5 rounded-[8px] border px-3 text-[11px] font-semibold transition-all hover:shadow-[0_4px_12px_rgba(248,113,113,0.2)] hover:-translate-y-0.5 active:translate-y-0"
+                                style={{ borderColor: 'rgba(248,113,113,0.3)', background: 'rgba(248,113,113,0.08)', color: '#f87171' }}
+                                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(248,113,113,0.15)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(248,113,113,0.08)'; }}
+                                aria-label={`Reject request ${row.id}`}>
+                                <XCircleIcon size={12} /> Reject
+                              </button>
+                            </>
+                          ) : (
+                            <span className="pr-2 text-[11px]" style={{ color: tokens.textMuted }}>—</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // ── EMPLOYEE ROW ──
                   return (
-                    <div 
-                      key={row.id} 
-                      className="grid grid-cols-[1fr_2fr_3fr_1.5fr] items-center gap-4 border-b py-4 last:border-none transition-colors hover:bg-white/[0.01]"
-                      style={{ borderColor: tokens.border }}
+                    <div
+                      key={row.id}
+                      className={`group grid ${gridCols} items-center gap-5 border-b py-3.5 last:border-none rounded-[10px] -mx-3 px-3 transition-all duration-150`}
+                      style={{ borderColor: tokens.borderSide }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = tokens.bgHover; e.currentTarget.style.borderColor = 'transparent'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = tokens.borderSide; }}
                     >
-                      {/* Columna 1: ID y Fecha */}
+                      {/* ID / Date */}
                       <div>
-                        <p className="text-[13px] font-semibold" style={{ color: tokens.textPrimary }}>{row.id}</p>
+                        <p className="text-[13px] font-semibold leading-tight" style={{ color: tokens.textPrimary }}>{row.id}</p>
                         <p className="mt-0.5 text-[11px]" style={{ color: tokens.textSecondary }}>{row.date}</p>
                       </div>
-
-                      {/* Columna 2: Tipo de Reporte e Icono */}
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-[8px]" style={{ background: tokens.bgInput }}>
-                          <RowIcon size={14} style={{ color: tokens.textSecondary }} />
+                      {/* Type */}
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px]" style={{ background: tokens.bgInput }}>
+                          <RI size={14} style={{ color: tokens.textSecondary }} />
                         </div>
                         <span className="text-[13px] font-medium" style={{ color: tokens.textPrimary }}>{row.type}</span>
                       </div>
-
-                      {/* Columna 3: Descripción */}
-                      <div className="truncate text-[13px]" style={{ color: tokens.textSecondary }}>
-                        {row.desc}
-                      </div>
-
-                      {/* Columna 4: Etiqueta de Estado (Badge visual) */}
-                      <div className="flex justify-end">
-                        <div 
-                          className="flex items-center gap-1.5 rounded-[8px] border px-2.5 py-1"
-                          style={{ 
-                            background: statusStyles[row.status].bg, 
-                            borderColor: statusStyles[row.status].border,
-                            color: statusStyles[row.status].color
-                          }}
-                        >
-                          <StatusIcon size={12} strokeWidth={2.5} />
+                      {/* Description */}
+                      <p className="truncate text-[13px]" style={{ color: tokens.textSecondary }}>{row.desc}</p>
+                      {/* Status */}
+                      <div>
+                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-[3px] ${ss.bg} ${ss.border} ${ss.text}`}>
+                          <SI size={12} strokeWidth={2.5} />
                           <span className="text-[11px] font-bold tracking-wide">{row.status}</span>
-                        </div>
+                        </span>
+                      </div>
+                      {/* Actions */}
+                      <div className="flex justify-end">
+                        {isPending ? (
+                          <button onClick={() => handleCancel(row.id)}
+                            className="flex h-[28px] items-center gap-1.5 rounded-[8px] border px-3 text-[11px] font-semibold transition-all hover:shadow-[0_4px_12px_rgba(248,113,113,0.2)] hover:-translate-y-0.5 active:translate-y-0"
+                            style={{ borderColor: 'rgba(248,113,113,0.3)', background: 'rgba(248,113,113,0.08)', color: '#f87171' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(248,113,113,0.15)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(248,113,113,0.08)'; }}
+                            aria-label={`Cancel request ${row.id}`}>
+                            <X size={11} /> Cancel
+                          </button>
+                        ) : (
+                          <span className="pr-2 text-[11px]" style={{ color: tokens.textMuted }}>—</span>
+                        )}
                       </div>
                     </div>
                   );
                 })}
-                
-                {/* ESTADO VACÍO: Se muestra si al filtrar no hay resultados (ej. Si pulsas Incidents y no hay ninguno) */}
-                {filteredReports.length === 0 && (
-                  <div className="py-12 text-center" style={{ color: tokens.textSecondary }}>
-                    <AlertCircle size={24} className="mx-auto mb-2 opacity-50" />
-                    <p className="text-[13px]">No records found for this category.</p>
+
+                {/* Empty state */}
+                {filtered.length === 0 && (
+                  <div className="flex flex-col items-center justify-center gap-2 py-14" style={{ color: tokens.textMuted }}>
+                    <Search size={28} className="opacity-40" />
+                    <p className="text-[14px] font-medium">
+                      {search ? `No results for "${search}"` : 'No records found.'}
+                    </p>
+                    {search && (
+                      <button onClick={() => setSearch('')} className="mt-1 text-[12px] text-[#818cf8] underline underline-offset-2">Clear search</button>
+                    )}
                   </div>
                 )}
               </div>
             </div>
-          </div>
 
+            {/* Footer */}
+            <div className="flex items-center justify-between border-t px-6 py-3" style={{ borderColor: tokens.borderSide }}>
+              <p className="text-[12px]" style={{ color: tokens.textMuted }}>
+                {filtered.length} {filtered.length === 1 ? 'record' : 'records'}
+                {search && ` matching "${search}"`}
+                {isAdmin && deptFilter !== 'All' && ` in ${deptFilter}`}
+              </p>
+              <p className="text-[12px]" style={{ color: tokens.textMuted }}>
+                {isAdmin ? `${reports.length} total` : `${reports.filter(r => r.employee === CURRENT_EMPLOYEE).length} total`}
+              </p>
+            </div>
+          </div>
         </div>
-      </main>
-    </div>
+      </div>
+
+      {/* Modals */}
+      {showModal && <NewRequestModal onClose={() => setShowModal(false)} onAdd={addReport} tokens={tokens} />}
+      {confirmAction && (
+        <ConfirmModal
+          action={confirmAction.action}
+          request={confirmAction.request}
+          onConfirm={() => handleStatusChange(confirmAction.request.id, confirmAction.action === 'approve' ? 'Approved' : 'Rejected')}
+          onClose={() => setConfirmAction(null)}
+          tokens={tokens}
+        />
+      )}
+    </AppLayout>
   );
 }
