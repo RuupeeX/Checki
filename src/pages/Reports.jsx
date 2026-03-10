@@ -5,17 +5,19 @@ import {
   FileText,
 } from 'lucide-react';
 import { useTokens } from '../contexts/Themecontext';
+import { useData } from '../contexts/DataContext';
 import AppLayout from '../components/AppLayout';
-import initialReportsData, {
+import {
   reportStatusStyles, reportTypeConfig,
   CURRENT_EMPLOYEE, departments,
 } from '../data/reportsData';
-import { reportsSummaryCards, getInitials, avatarGradients } from '../data/mockData';
+import { getInitials, avatarGradients } from '../data/mockData';
 
 // ============================================================================
 // MODAL: NEW REQUEST (Solo para empleados)
 // ============================================================================
-function NewRequestModal({ onClose, onAdd, tokens }) {
+function NewRequestModal({ onClose, tokens }) {
+  const { addReport } = useData();
   const [type, setType]   = useState('Vacation');
   const [desc, setDesc]   = useState('');
   const [date, setDate]   = useState('');
@@ -29,7 +31,7 @@ function NewRequestModal({ onClose, onAdd, tokens }) {
     const pad     = (n) => n.toString().padStart(2, '0');
     const dateStr = `${pad(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()}`;
     const nextId  = `REQ-${String(Math.floor(Math.random() * 900) + 100)}`;
-    onAdd({
+    addReport({
       id: nextId, date: dateStr, dateRaw: d, type, desc: desc.trim(),
       status: 'Pending',
       icon: reportTypeConfig[type]?.icon || FileText,
@@ -39,9 +41,8 @@ function NewRequestModal({ onClose, onAdd, tokens }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="New Request">
-      <div className="w-[460px] rounded-[20px] border p-7 shadow-[0_24px_64px_rgba(0,0,0,0.5)]" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
-        {/* Header */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="New Request">
+      <div className="w-full max-w-[460px] rounded-[20px] border p-7 shadow-[0_24px_64px_rgba(0,0,0,0.5)]" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-gradient-to-br from-[#6366f1] to-[#8b5cf6]">
@@ -55,7 +56,6 @@ function NewRequestModal({ onClose, onAdd, tokens }) {
         </div>
 
         <div className="flex flex-col gap-4">
-          {/* Type */}
           <div>
             <label className="mb-2 block text-[12px] font-medium" style={{ color: tokens.textSecondary }}>Type</label>
             <div className="grid grid-cols-4 gap-2">
@@ -72,14 +72,12 @@ function NewRequestModal({ onClose, onAdd, tokens }) {
               })}
             </div>
           </div>
-          {/* Date */}
           <div>
             <label className="mb-1.5 block text-[12px] font-medium" style={{ color: tokens.textSecondary }}>Date *</label>
             <input type="date" value={date} onChange={e => { setDate(e.target.value); setError(''); }}
               className="w-full rounded-[10px] border px-3.5 py-2.5 text-[13px] outline-none transition-colors focus:border-[#6366f1] [color-scheme:dark]"
               style={{ background: tokens.bgInput, borderColor: tokens.border, color: tokens.textPrimary }} />
           </div>
-          {/* Desc */}
           <div>
             <label className="mb-1.5 block text-[12px] font-medium" style={{ color: tokens.textSecondary }}>Description *</label>
             <input type="text" value={desc} onChange={e => { setDesc(e.target.value); setError(''); }}
@@ -104,7 +102,7 @@ function NewRequestModal({ onClose, onAdd, tokens }) {
 }
 
 // ============================================================================
-// MODAL: CONFIRMAR ACCIÓN DEL ADMIN (Aprobar / Rechazar)
+// MODAL: CONFIRMAR ACCIÓN DEL ADMIN
 // ============================================================================
 function ConfirmModal({ action, request, onConfirm, onClose, tokens }) {
   const isApprove = action === 'approve';
@@ -113,8 +111,8 @@ function ConfirmModal({ action, request, onConfirm, onClose, tokens }) {
   const shadow    = isApprove ? '0 4px 16px rgba(22,163,74,0.3)' : '0 4px 16px rgba(239,68,68,0.3)';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true">
-      <div className="w-[400px] rounded-[20px] border p-7 shadow-[0_24px_64px_rgba(0,0,0,0.5)]" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+      <div className="w-full max-w-[400px] rounded-[20px] border p-7 shadow-[0_24px_64px_rgba(0,0,0,0.5)]" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
         <div className="mb-5 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-[12px]" style={{ background: `${color}15`, border: `1.5px solid ${color}30` }}>
             {isApprove ? <Check size={18} style={{ color }} /> : <XCircleIcon size={18} style={{ color }} />}
@@ -127,7 +125,6 @@ function ConfirmModal({ action, request, onConfirm, onClose, tokens }) {
           </div>
         </div>
 
-        {/* Request summary */}
         <div className="mb-6 rounded-[12px] border p-4" style={{ background: tokens.bgInput, borderColor: tokens.border }}>
           <div className="flex items-center justify-between">
             <p className="text-[13px] font-semibold" style={{ color: tokens.textPrimary }}>{request.id}</p>
@@ -166,21 +163,18 @@ function SortIcon({ col, sortCol, sortDir, tokens }) {
 export default function ReportsPage({ role = 'employee', onLogout, onNav }) {
   const tokens  = useTokens();
   const isAdmin = role === 'admin';
+  const { reports, addReport, updateReportStatus, deleteReport } = useData();
 
-  const [reports,      setReports]      = useState(initialReportsData);
   const [activeTab,    setActiveTab]    = useState('All');
   const [search,       setSearch]       = useState('');
   const [showModal,    setShowModal]    = useState(false);
   const [sortCol,      setSortCol]      = useState('dateRaw');
   const [sortDir,      setSortDir]      = useState('desc');
-  // Admin: filtro por departamento
   const [deptFilter,   setDeptFilter]   = useState('All');
-  // Admin: modal de confirmar acción
-  const [confirmAction, setConfirmAction] = useState(null); // { action: 'approve'|'reject', request }
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const tabs = ['All', 'Vacations', 'Medical', 'Incidents', 'Timesheet'];
 
-  // ── Sorting ──
   const handleSort = (col) => {
     if (sortCol === col) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); }
     else { setSortCol(col); setSortDir('asc'); }
@@ -213,24 +207,12 @@ export default function ReportsPage({ role = 'employee', onLogout, onNav }) {
   // ── Filtrado + Búsqueda + Ordenación ──
   const filtered = useMemo(() => {
     let rows = [...reports];
-
-    // Empleado: solo sus propios reports
-    if (!isAdmin) {
-      rows = rows.filter(r => r.employee === CURRENT_EMPLOYEE);
-    }
-
-    // Admin: filtro por departamento
-    if (isAdmin && deptFilter !== 'All') {
-      rows = rows.filter(r => r.dept === deptFilter);
-    }
-
-    // Tab de tipo
+    if (!isAdmin) rows = rows.filter(r => r.employee === CURRENT_EMPLOYEE);
+    if (isAdmin && deptFilter !== 'All') rows = rows.filter(r => r.dept === deptFilter);
     if (activeTab !== 'All') {
       const map = { Vacations: 'Vacation', Medical: 'Medical', Incidents: 'Incident', Timesheet: 'Timesheet' };
       rows = rows.filter(r => r.type === map[activeTab]);
     }
-
-    // Búsqueda
     if (search.trim()) {
       const q = search.toLowerCase();
       rows = rows.filter(r =>
@@ -240,8 +222,6 @@ export default function ReportsPage({ role = 'employee', onLogout, onNav }) {
         r.dept.toLowerCase().includes(q)
       );
     }
-
-    // Ordenar
     rows.sort((a, b) => {
       let va = a[sortCol]; let vb = b[sortCol];
       if (sortCol === 'dateRaw') { va = va.getTime(); vb = vb.getTime(); }
@@ -250,24 +230,16 @@ export default function ReportsPage({ role = 'employee', onLogout, onNav }) {
       if (va > vb) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-
     return rows;
   }, [reports, activeTab, search, sortCol, sortDir, isAdmin, deptFilter]);
 
-  // ── Acciones ──
-  const addReport = (r) => setReports(prev => [r, ...prev]);
-
   const handleStatusChange = (id, newStatus) => {
-    setReports(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
+    updateReportStatus(id, newStatus);
     setConfirmAction(null);
   };
 
-  // Empleado: cancelar petición pendiente propia
-  const handleCancel = (id) => {
-    setReports(prev => prev.filter(r => r.id !== id));
-  };
+  const handleCancel = (id) => deleteReport(id);
 
-  // ── Column header ──
   const ColHeader = ({ col, label }) => (
     <button onClick={() => handleSort(col)}
       className="flex items-center gap-1 text-left text-[11px] font-semibold uppercase tracking-[0.05em] transition-colors hover:text-[#818cf8]"
@@ -277,23 +249,21 @@ export default function ReportsPage({ role = 'employee', onLogout, onNav }) {
     </button>
   );
 
-  // ── Grid proporcional según rol ──
-  // Admin:    Employee | Type | Description | Status | Actions
-  // Employee: ID/Date  | Type | Description | Status | Actions
+  // Grid responsive: en mobile mostramos como cards en vez de tabla
   const gridCols = isAdmin
     ? 'grid-cols-[minmax(200px,2.2fr)_minmax(100px,1.2fr)_minmax(160px,2.5fr)_minmax(100px,1fr)_minmax(180px,1.5fr)]'
     : 'grid-cols-[minmax(120px,1.2fr)_minmax(120px,1.5fr)_minmax(200px,3fr)_minmax(100px,1.2fr)_minmax(80px,0.8fr)]';
 
   return (
     <AppLayout role={role} activePage="reports" onNav={onNav} onLogout={onLogout}>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="mx-auto max-w-[1200px]">
 
-          {/* ── HEADER ── */}
-          <div className="mb-8 flex items-end justify-between">
+          {/* ── HEADER — responsive ── */}
+          <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-[26px] font-semibold tracking-[-0.02em]" style={{ color: tokens.textPrimary }}>
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-[22px] font-semibold tracking-[-0.02em] sm:text-[26px]" style={{ color: tokens.textPrimary }}>
                   {isAdmin ? 'Team Reports' : 'My Reports'}
                 </h1>
                 {isAdmin && (
@@ -307,21 +277,17 @@ export default function ReportsPage({ role = 'employee', onLogout, onNav }) {
                   </span>
                 )}
               </div>
-              <p className="mt-1 text-[14px]" style={{ color: tokens.textSecondary }}>
-                {isAdmin
-                  ? 'Review and manage all employee requests and incidents.'
-                  : 'Track your requests, absences, and logged incidents.'}
+              <p className="mt-1 text-[13px] sm:text-[14px]" style={{ color: tokens.textSecondary }}>
+                {isAdmin ? 'Review and manage all employee requests and incidents.' : 'Track your requests, absences, and logged incidents.'}
               </p>
             </div>
             <div className="flex items-center gap-2.5">
-              {/* Export: solo admin */}
               {isAdmin && (
                 <button className="flex items-center gap-2 rounded-[10px] border px-4 py-2.5 text-[13px] font-semibold transition-all hover:bg-white/5"
                   style={{ borderColor: tokens.border, background: tokens.bgCard, color: tokens.textPrimary }}>
                   <Download size={15} /> Export
                 </button>
               )}
-              {/* New Request: solo empleado */}
               {!isAdmin && (
                 <button onClick={() => setShowModal(true)}
                   className="flex items-center gap-2 rounded-[10px] px-4 py-2.5 text-[13px] font-bold text-white transition-all hover:-translate-y-0.5"
@@ -332,28 +298,27 @@ export default function ReportsPage({ role = 'employee', onLogout, onNav }) {
             </div>
           </div>
 
-          {/* ── KPI CARDS ── */}
-          <div className="mb-8 grid grid-cols-4 gap-4">
+          {/* ── KPI CARDS — responsive grid ── */}
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:mb-8 sm:grid-cols-4 sm:gap-4">
             {kpiCards.map((card, i) => (
-              <div key={i} className="rounded-[16px] border p-5" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
-                <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.06em]" style={{ color: tokens.textSecondary }}>{card.title}</p>
-                <p className="text-[30px] font-bold leading-none tracking-[-0.02em]" style={{ color: card.color }}>{card.value}</p>
-                <p className="mt-2 text-[11px]" style={{ color: tokens.textMuted }}>{card.sub}</p>
+              <div key={i} className="rounded-[16px] border p-4 sm:p-5" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
+                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.06em] sm:mb-3 sm:text-[11px]" style={{ color: tokens.textSecondary }}>{card.title}</p>
+                <p className="text-[24px] font-bold leading-none tracking-[-0.02em] sm:text-[30px]" style={{ color: card.color }}>{card.value}</p>
+                <p className="mt-1.5 text-[10px] sm:mt-2 sm:text-[11px]" style={{ color: tokens.textMuted }}>{card.sub}</p>
               </div>
             ))}
           </div>
 
           {/* ── TABLE CARD ── */}
-          <div className="rounded-[20px] border overflow-hidden" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
+          <div className="overflow-hidden rounded-[16px] border sm:rounded-[20px]" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
 
-            {/* Toolbar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b px-6 py-4" style={{ borderColor: tokens.borderSide }}>
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Tabs de tipo */}
-                <div className="flex gap-1" role="tablist" aria-label="Filter by type">
+            {/* Toolbar — responsive wrapping */}
+            <div className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6 sm:py-4" style={{ borderColor: tokens.borderSide }}>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <div className="flex flex-wrap gap-1" role="tablist" aria-label="Filter by type">
                   {tabs.map(tab => (
                     <button key={tab} onClick={() => setActiveTab(tab)} role="tab" aria-selected={activeTab === tab}
-                      className={`rounded-[8px] px-3 py-1.5 text-[12px] font-semibold transition-all
+                      className={`rounded-[8px] px-2.5 py-1.5 text-[11px] font-semibold transition-all sm:px-3 sm:text-[12px]
                         ${activeTab === tab ? 'bg-[#6366f1]/15 text-[#818cf8]' : 'hover:bg-white/5'}`}
                       style={{ color: activeTab === tab ? undefined : tokens.textSecondary }}>
                       {tab}
@@ -361,11 +326,10 @@ export default function ReportsPage({ role = 'employee', onLogout, onNav }) {
                   ))}
                 </div>
 
-                {/* Admin: filtro por departamento */}
                 {isAdmin && (
                   <>
-                    <div className="h-4 w-px" style={{ background: tokens.border }} />
-                    <div className="flex gap-0.5">
+                    <div className="hidden h-4 w-px sm:block" style={{ background: tokens.border }} />
+                    <div className="flex flex-wrap gap-0.5">
                       {departments.map(d => (
                         <button key={d} onClick={() => setDeptFilter(d)}
                           className={`rounded-[6px] px-2 py-1 text-[11px] font-semibold transition-all
@@ -379,13 +343,12 @@ export default function ReportsPage({ role = 'employee', onLogout, onNav }) {
                 )}
               </div>
 
-              {/* Search */}
               <div className="relative">
                 <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: tokens.textMuted }} aria-hidden="true" />
                 <input type="text" value={search} onChange={e => setSearch(e.target.value)}
                   placeholder={isAdmin ? 'Search by name, dept...' : 'Search reports...'}
                   aria-label="Search reports"
-                  className="w-[200px] rounded-[8px] border py-1.5 pl-8 pr-3 text-[12px] outline-none transition-colors focus:border-[#6366f1]"
+                  className="w-full rounded-[8px] border py-1.5 pl-8 pr-3 text-[12px] outline-none transition-colors focus:border-[#6366f1] sm:w-[200px]"
                   style={{ background: tokens.bgInput, borderColor: tokens.border, color: tokens.textPrimary }} />
                 {search && (
                   <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 transition-colors hover:text-[#e2e8f0]" style={{ color: tokens.textMuted }} aria-label="Clear search">
@@ -395,9 +358,8 @@ export default function ReportsPage({ role = 'employee', onLogout, onNav }) {
               </div>
             </div>
 
-            {/* Table */}
-            <div className="px-6 py-1">
-
+            {/* Table — hidden on mobile, show cards instead */}
+            <div className="hidden px-6 py-1 sm:block">
               {/* Column headers */}
               {isAdmin ? (
                 <div className={`grid ${gridCols} items-center gap-5 py-3.5`}>
@@ -426,63 +388,47 @@ export default function ReportsPage({ role = 'employee', onLogout, onNav }) {
                   const isPending = row.status === 'Pending';
 
                   if (isAdmin) {
-                    // ── ADMIN ROW ──
-                    const empIdx = initialReportsData.findIndex(r => r.employee === row.employee);
+                    const empIdx = reports.findIndex(r => r.employee === row.employee);
                     return (
-                      <div
-                        key={row.id}
+                      <div key={row.id}
                         className={`group grid ${gridCols} items-center gap-5 border-b py-3.5 last:border-none rounded-[10px] -mx-3 px-3 transition-all duration-150`}
                         style={{ borderColor: tokens.borderSide }}
                         onMouseEnter={(e) => { e.currentTarget.style.background = tokens.bgHover; e.currentTarget.style.borderColor = 'transparent'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = tokens.borderSide; }}
-                      >
-                        {/* Employee + Dept */}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = tokens.borderSide; }}>
                         <div className="flex items-center gap-3 min-w-0">
                           <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br ${avatarGradients[Math.abs(empIdx) % avatarGradients.length]} text-[11px] font-bold text-white shadow-sm`} aria-hidden="true">
                             {getInitials(row.employee)}
                           </div>
                           <div className="min-w-0">
                             <p className="truncate text-[13px] font-semibold leading-tight" style={{ color: tokens.textPrimary }}>{row.employee}</p>
-                            <p className="mt-0.5 text-[11px] leading-tight" style={{ color: tokens.textMuted }}>
-                              {row.dept} · {row.date}
-                            </p>
+                            <p className="mt-0.5 text-[11px] leading-tight" style={{ color: tokens.textMuted }}>{row.dept} · {row.date}</p>
                           </div>
                         </div>
-                        {/* Type */}
                         <div className="flex items-center gap-2.5">
                           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px]" style={{ background: tokens.bgInput }}>
                             <RI size={13} style={{ color: tokens.textSecondary }} />
                           </div>
                           <span className="text-[12px] font-medium" style={{ color: tokens.textPrimary }}>{row.type}</span>
                         </div>
-                        {/* Description */}
                         <p className="truncate text-[12px] leading-relaxed" style={{ color: tokens.textSecondary }}>{row.desc}</p>
-                        {/* Status badge */}
                         <div>
                           <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-[3px] ${ss.bg} ${ss.border} ${ss.text}`}>
                             <SI size={11} strokeWidth={2.5} />
                             <span className="text-[10px] font-bold tracking-wide">{row.status}</span>
                           </span>
                         </div>
-                        {/* Actions */}
                         <div className="flex justify-end gap-2">
                           {isPending ? (
                             <>
-                              <button
-                                onClick={() => setConfirmAction({ action: 'approve', request: row })}
+                              <button onClick={() => setConfirmAction({ action: 'approve', request: row })}
                                 className="flex h-[30px] items-center gap-1.5 rounded-[8px] border px-3 text-[11px] font-semibold transition-all hover:shadow-[0_4px_12px_rgba(52,211,153,0.2)] hover:-translate-y-0.5 active:translate-y-0"
                                 style={{ borderColor: 'rgba(52,211,153,0.3)', background: 'rgba(52,211,153,0.08)', color: '#34d399' }}
-                                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(52,211,153,0.15)'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(52,211,153,0.08)'; }}
                                 aria-label={`Approve request ${row.id}`}>
                                 <Check size={12} /> Approve
                               </button>
-                              <button
-                                onClick={() => setConfirmAction({ action: 'reject', request: row })}
+                              <button onClick={() => setConfirmAction({ action: 'reject', request: row })}
                                 className="flex h-[30px] items-center gap-1.5 rounded-[8px] border px-3 text-[11px] font-semibold transition-all hover:shadow-[0_4px_12px_rgba(248,113,113,0.2)] hover:-translate-y-0.5 active:translate-y-0"
                                 style={{ borderColor: 'rgba(248,113,113,0.3)', background: 'rgba(248,113,113,0.08)', color: '#f87171' }}
-                                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(248,113,113,0.15)'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(248,113,113,0.08)'; }}
                                 aria-label={`Reject request ${row.id}`}>
                                 <XCircleIcon size={12} /> Reject
                               </button>
@@ -495,44 +441,34 @@ export default function ReportsPage({ role = 'employee', onLogout, onNav }) {
                     );
                   }
 
-                  // ── EMPLOYEE ROW ──
                   return (
-                    <div
-                      key={row.id}
+                    <div key={row.id}
                       className={`group grid ${gridCols} items-center gap-5 border-b py-3.5 last:border-none rounded-[10px] -mx-3 px-3 transition-all duration-150`}
                       style={{ borderColor: tokens.borderSide }}
                       onMouseEnter={(e) => { e.currentTarget.style.background = tokens.bgHover; e.currentTarget.style.borderColor = 'transparent'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = tokens.borderSide; }}
-                    >
-                      {/* ID / Date */}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = tokens.borderSide; }}>
                       <div>
                         <p className="text-[13px] font-semibold leading-tight" style={{ color: tokens.textPrimary }}>{row.id}</p>
                         <p className="mt-0.5 text-[11px]" style={{ color: tokens.textSecondary }}>{row.date}</p>
                       </div>
-                      {/* Type */}
                       <div className="flex items-center gap-2.5">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px]" style={{ background: tokens.bgInput }}>
                           <RI size={14} style={{ color: tokens.textSecondary }} />
                         </div>
                         <span className="text-[13px] font-medium" style={{ color: tokens.textPrimary }}>{row.type}</span>
                       </div>
-                      {/* Description */}
                       <p className="truncate text-[13px]" style={{ color: tokens.textSecondary }}>{row.desc}</p>
-                      {/* Status */}
                       <div>
                         <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-[3px] ${ss.bg} ${ss.border} ${ss.text}`}>
                           <SI size={12} strokeWidth={2.5} />
                           <span className="text-[11px] font-bold tracking-wide">{row.status}</span>
                         </span>
                       </div>
-                      {/* Actions */}
                       <div className="flex justify-end">
                         {isPending ? (
                           <button onClick={() => handleCancel(row.id)}
                             className="flex h-[28px] items-center gap-1.5 rounded-[8px] border px-3 text-[11px] font-semibold transition-all hover:shadow-[0_4px_12px_rgba(248,113,113,0.2)] hover:-translate-y-0.5 active:translate-y-0"
                             style={{ borderColor: 'rgba(248,113,113,0.3)', background: 'rgba(248,113,113,0.08)', color: '#f87171' }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(248,113,113,0.15)'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(248,113,113,0.08)'; }}
                             aria-label={`Cancel request ${row.id}`}>
                             <X size={11} /> Cancel
                           </button>
@@ -544,7 +480,6 @@ export default function ReportsPage({ role = 'employee', onLogout, onNav }) {
                   );
                 })}
 
-                {/* Empty state */}
                 {filtered.length === 0 && (
                   <div className="flex flex-col items-center justify-center gap-2 py-14" style={{ color: tokens.textMuted }}>
                     <Search size={28} className="opacity-40" />
@@ -559,14 +494,69 @@ export default function ReportsPage({ role = 'employee', onLogout, onNav }) {
               </div>
             </div>
 
+            {/* Mobile card view */}
+            <div className="flex flex-col gap-3 p-4 sm:hidden">
+              {filtered.map((row) => {
+                const ss = reportStatusStyles[row.status];
+                const SI = ss.icon;
+                const isPending = row.status === 'Pending';
+                return (
+                  <div key={row.id} className="rounded-[12px] border p-4" style={{ background: tokens.bgInput, borderColor: tokens.border }}>
+                    <div className="mb-2 flex items-start justify-between">
+                      <div>
+                        <p className="text-[13px] font-semibold" style={{ color: tokens.textPrimary }}>{row.id}</p>
+                        {isAdmin && <p className="mt-0.5 text-[11px]" style={{ color: tokens.textSecondary }}>{row.employee} · {row.dept}</p>}
+                      </div>
+                      <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-[2px] ${ss.bg} ${ss.border} ${ss.text}`}>
+                        <SI size={10} strokeWidth={2.5} />
+                        <span className="text-[9px] font-bold">{row.status}</span>
+                      </span>
+                    </div>
+                    <p className="text-[12px] font-medium" style={{ color: tokens.textPrimary }}>{row.type}: {row.desc}</p>
+                    <p className="mt-1 text-[11px]" style={{ color: tokens.textMuted }}>{row.date}</p>
+                    {isPending && (
+                      <div className="mt-3 flex gap-2">
+                        {isAdmin ? (
+                          <>
+                            <button onClick={() => setConfirmAction({ action: 'approve', request: row })}
+                              className="flex-1 rounded-[8px] border py-1.5 text-[11px] font-semibold"
+                              style={{ borderColor: 'rgba(52,211,153,0.3)', background: 'rgba(52,211,153,0.08)', color: '#34d399' }}>
+                              Approve
+                            </button>
+                            <button onClick={() => setConfirmAction({ action: 'reject', request: row })}
+                              className="flex-1 rounded-[8px] border py-1.5 text-[11px] font-semibold"
+                              style={{ borderColor: 'rgba(248,113,113,0.3)', background: 'rgba(248,113,113,0.08)', color: '#f87171' }}>
+                              Reject
+                            </button>
+                          </>
+                        ) : (
+                          <button onClick={() => handleCancel(row.id)}
+                            className="rounded-[8px] border px-3 py-1.5 text-[11px] font-semibold"
+                            style={{ borderColor: 'rgba(248,113,113,0.3)', background: 'rgba(248,113,113,0.08)', color: '#f87171' }}>
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {filtered.length === 0 && (
+                <div className="flex flex-col items-center justify-center gap-2 py-10" style={{ color: tokens.textMuted }}>
+                  <Search size={24} className="opacity-40" />
+                  <p className="text-[13px] font-medium">{search ? `No results for "${search}"` : 'No records found.'}</p>
+                </div>
+              )}
+            </div>
+
             {/* Footer */}
-            <div className="flex items-center justify-between border-t px-6 py-3" style={{ borderColor: tokens.borderSide }}>
-              <p className="text-[12px]" style={{ color: tokens.textMuted }}>
+            <div className="flex items-center justify-between border-t px-4 py-3 sm:px-6" style={{ borderColor: tokens.borderSide }}>
+              <p className="text-[11px] sm:text-[12px]" style={{ color: tokens.textMuted }}>
                 {filtered.length} {filtered.length === 1 ? 'record' : 'records'}
                 {search && ` matching "${search}"`}
                 {isAdmin && deptFilter !== 'All' && ` in ${deptFilter}`}
               </p>
-              <p className="text-[12px]" style={{ color: tokens.textMuted }}>
+              <p className="text-[11px] sm:text-[12px]" style={{ color: tokens.textMuted }}>
                 {isAdmin ? `${reports.length} total` : `${reports.filter(r => r.employee === CURRENT_EMPLOYEE).length} total`}
               </p>
             </div>
@@ -575,7 +565,7 @@ export default function ReportsPage({ role = 'employee', onLogout, onNav }) {
       </div>
 
       {/* Modals */}
-      {showModal && <NewRequestModal onClose={() => setShowModal(false)} onAdd={addReport} tokens={tokens} />}
+      {showModal && <NewRequestModal onClose={() => setShowModal(false)} tokens={tokens} />}
       {confirmAction && (
         <ConfirmModal
           action={confirmAction.action}

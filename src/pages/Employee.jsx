@@ -38,7 +38,8 @@ function EmployeeModal({ employee, onClose, onSave, onDelete, tokens }) {
   const gradIdx = initialEmployees.findIndex(e => e.id === employee.id);
   const ss = employeeStatusStyles[form.status] || employeeStatusStyles['On Time'];
 
-  const Field = ({ label, field, type = 'text' }) => (
+  // CORRECCIÓN: Renderizamos como función en lugar de sub-componente para evitar perder el foco al escribir
+  const renderField = (label, field, type = 'text') => (
     <div>
       <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.06em]" style={{ color: tokens.textMuted }}>{label}</p>
       {editing ? (
@@ -55,8 +56,8 @@ function EmployeeModal({ employee, onClose, onSave, onDelete, tokens }) {
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={`Details for ${employee.name}`}>
-      <div className="w-[480px] overflow-hidden rounded-[20px] border shadow-[0_24px_64px_rgba(0,0,0,0.5)]" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={`Details for ${employee.name}`}>
+      <div className="w-full max-w-[480px] overflow-hidden rounded-[20px] border shadow-[0_24px_64px_rgba(0,0,0,0.5)]" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
 
         {/* Header */}
         <div className="relative px-7 pb-6 pt-7" style={{ background: 'linear-gradient(135deg,rgba(99,102,241,0.07),rgba(139,92,246,0.03))' }}>
@@ -88,12 +89,12 @@ function EmployeeModal({ employee, onClose, onSave, onDelete, tokens }) {
         {/* Details */}
         <div className="px-7 py-5">
           <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-            <Field label="Email" field="email" type="email" />
-            <Field label="Phone" field="phone" />
-            <Field label="Shift Start" field="start" />
-            <Field label="Shift End" field="end" />
-            <Field label="Department" field="dept" />
-            <Field label="Join Date" field="joinDate" />
+            {renderField('Email', 'email', 'email')}
+            {renderField('Phone', 'phone')}
+            {renderField('Shift Start', 'start')}
+            {renderField('Shift End', 'end')}
+            {renderField('Department', 'dept')}
+            {renderField('Join Date', 'joinDate')}
           </div>
 
           {/* Status selector (solo en modo edición) */}
@@ -207,19 +208,24 @@ function AddEmployeeModal({ onClose, onAdd, tokens }) {
     onClose();
   };
 
-  const Input = ({ label, field, placeholder = '', type = 'text' }) => (
+  // CORRECCIÓN: Renderizamos como función en lugar de sub-componente
+  const renderInput = (label, field, placeholder = '', type = 'text') => (
     <div>
       <label className="mb-1.5 block text-[12px] font-medium" style={{ color: tokens.textSecondary }}>{label} *</label>
-      <input type={type} value={form[field]} onChange={e => { setForm({ ...form, [field]: e.target.value }); setError(''); }}
+      <input 
+        type={type} 
+        value={form[field]} 
+        onChange={e => { setForm({ ...form, [field]: e.target.value }); setError(''); }}
         placeholder={placeholder}
         className="w-full rounded-[10px] border px-3.5 py-2.5 text-[13px] outline-none transition-colors focus:border-[#6366f1]"
-        style={{ background: tokens.bgInput, borderColor: tokens.border, color: tokens.textPrimary }} />
+        style={{ background: tokens.bgInput, borderColor: tokens.border, color: tokens.textPrimary }} 
+      />
     </div>
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true">
-      <div className="w-[460px] rounded-[20px] border p-7 shadow-[0_24px_64px_rgba(0,0,0,0.5)]" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+      <div className="w-full max-w-[460px] rounded-[20px] border p-6 shadow-[0_24px_64px_rgba(0,0,0,0.5)] sm:p-7" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-gradient-to-br from-[#6366f1] to-[#8b5cf6]">
@@ -232,12 +238,12 @@ function AddEmployeeModal({ onClose, onAdd, tokens }) {
 
         <div className="flex flex-col gap-3.5">
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Full Name" field="name" placeholder="e.g. Ana López" />
-            <Input label="Role" field="role" placeholder="e.g. Designer" />
+            {renderInput('Full Name', 'name', 'e.g. Ana López')}
+            {renderInput('Role', 'role', 'e.g. Designer')}
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Email" field="email" placeholder="ana@checkin.io" type="email" />
-            <Input label="Phone" field="phone" placeholder="+34 612 ..." />
+            {renderInput('Email', 'email', 'ana@checkin.io', 'email')}
+            {renderInput('Phone', 'phone', '+34 612 ...')}
           </div>
           <div>
             <label className="mb-2 block text-[12px] font-medium" style={{ color: tokens.textSecondary }}>Department</label>
@@ -365,11 +371,11 @@ export default function EmployeesPage({ onLogout, onNav, initialDept }) {
 
   return (
     <AppLayout role="admin" activePage="employees" onNav={onNav} onLogout={onLogout}>
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <div className="mx-auto max-w-[1200px]">
 
-          {/* Header */}
-          <div className="mb-6 flex items-end justify-between">
+          {/* Header — responsive */}
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h1 className="text-[26px] font-semibold tracking-[-0.02em]" style={{ color: tokens.textPrimary }}>Employees</h1>
               <p className="mt-1 text-[14px]" style={{ color: tokens.textSecondary }}>
@@ -384,7 +390,7 @@ export default function EmployeesPage({ onLogout, onNav, initialDept }) {
           </div>
 
           {/* KPI strip */}
-          <div className="mb-6 grid grid-cols-4 gap-3">
+          <div className="mb-5 grid grid-cols-2 gap-2 sm:mb-6 sm:grid-cols-4 sm:gap-3">
             {kpis.map(({ label, value, color, Icon }) => (
               <div key={label} className="flex items-center gap-4 rounded-[14px] border px-5 py-4" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px]" style={{ background: `${color}12` }}>
@@ -399,10 +405,10 @@ export default function EmployeesPage({ onLogout, onNav, initialDept }) {
           </div>
 
           {/* Table card */}
-          <div className="rounded-[20px] border overflow-hidden" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
+          <div className="overflow-hidden rounded-[16px] border sm:rounded-[20px]" style={{ background: tokens.bgCard, borderColor: tokens.border }}>
 
             {/* Toolbar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b px-6 py-4" style={{ borderColor: tokens.borderSide }}>
+            <div className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6 sm:py-4" style={{ borderColor: tokens.borderSide }}>
               <div className="flex flex-wrap items-center gap-3">
                 {/* Dept filter */}
                 <div className="flex gap-0.5" role="tablist" aria-label="Filter by department">
@@ -547,7 +553,7 @@ export default function EmployeesPage({ onLogout, onNav, initialDept }) {
               /* Cards view */
               <div className="p-6">
                 {paginated.length > 0 ? (
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4">
                     {paginated.map((emp) => {
                       const i = initialEmployees.findIndex(e => e.id === emp.id);
                       return <EmployeeCard key={emp.id} emp={emp} index={Math.abs(i)} tokens={tokens} onClick={setSelectedEmp} />;
@@ -563,7 +569,7 @@ export default function EmployeesPage({ onLogout, onNav, initialDept }) {
             )}
 
             {/* Pagination footer */}
-            <div className="flex items-center justify-between border-t px-6 py-3" style={{ borderColor: tokens.borderSide }}>
+            <div className="flex items-center justify-between border-t px-4 py-3 sm:px-6" style={{ borderColor: tokens.borderSide }}>
               <p className="text-[12px]" style={{ color: tokens.textMuted }}>
                 Showing {paginated.length} of {filtered.length} employee{filtered.length !== 1 ? 's' : ''}
                 {deptFilter !== 'All' && ` in ${deptFilter}`}

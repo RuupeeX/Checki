@@ -1,26 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Eye, EyeOff, ArrowRight, Shield, User } from 'lucide-react';
-
-// ============================================================================
-// HOOK: COUNT-UP para las estadísticas
-// ============================================================================
-function useCountUp(target, duration = 1400) {
-  const [value, setValue] = useState(0);
-  const raf = useRef(null);
-  useEffect(() => {
-    const t0 = performance.now();
-    const step = (now) => {
-      const p = Math.min((now - t0) / duration, 1);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setValue(Math.round(eased * target));
-      if (p < 1) raf.current = requestAnimationFrame(step);
-    };
-    // Start after a delay to sync with fadeUp animation
-    const t = setTimeout(() => { raf.current = requestAnimationFrame(step); }, 400);
-    return () => { clearTimeout(t); cancelAnimationFrame(raf.current); };
-  }, [target, duration]);
-  return value;
-}
+import useCountUp from '../hooks/useCountUp';
 
 // ============================================================================
 // FLOATING PARTICLES — Efecto sutil en el panel izquierdo
@@ -43,7 +23,6 @@ function FloatingParticles() {
     resize();
     window.addEventListener('resize', resize);
 
-    // Create particles
     const count = 35;
     for (let i = 0; i < count; i++) {
       particles.push({
@@ -75,7 +54,6 @@ function FloatingParticles() {
         ctx.fill();
       });
 
-      // Draw connections
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
           const dx = particles[i].x - particles[j].x;
@@ -112,7 +90,7 @@ function FloatingParticles() {
 }
 
 // ============================================================================
-// ROLE INDICATOR — Badge que aparece según el email
+// ROLE INDICATOR
 // ============================================================================
 function RoleIndicator({ email }) {
   const hasText = email.length > 0;
@@ -148,7 +126,7 @@ export default function LoginPage({ onLogin }) {
   const [error, setError]       = useState('');
   const [shake, setShake]       = useState(false);
 
-  // Contadores animados
+  // Contadores animados — ahora con hook compartido
   const empCount  = useCountUp(200, 1600);
   const deptCount = useCountUp(4, 800);
 
@@ -176,32 +154,27 @@ export default function LoginPage({ onLogin }) {
     <div className="flex h-screen w-full overflow-hidden bg-[#0a0c10] font-[DM_Sans,system-ui,sans-serif] text-[#e2e8f0]">
 
       {/* ============================================================================
-          PANEL IZQUIERDO — Branding + Partículas
+          PANEL IZQUIERDO — Branding + Partículas (oculto en móvil)
           ============================================================================ */}
       <div
-        className="relative hidden flex-1 flex-col justify-between overflow-hidden border-r border-[#1a1f2b] p-16 lg:flex"
+        className="relative hidden flex-1 flex-col justify-between overflow-hidden border-r border-[#1a1f2b] p-10 lg:flex lg:p-16"
         style={{
           backgroundImage: 'linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px)',
           backgroundSize: '40px 40px',
         }}
       >
-        {/* Partículas flotantes */}
         <FloatingParticles />
-
-        {/* Aura morada */}
         <div className="pointer-events-none absolute left-1/4 top-1/3 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(99,102,241,0.07)_0%,transparent_70%)]" />
 
-        {/* Logo */}
         <div className="relative z-10 flex items-center -mb-8">
           <img src="./Checki_purple.png" alt="CheckIn Logo" className="h-12 w-auto object-contain" />
         </div>
 
-        {/* Textos principales */}
         <div className="relative z-10 animate-[fadeUp_0.5s_ease_0.1s_both]">
           <p className="mb-5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#4a5568]">
             Workforce Management
           </p>
-          <h1 className="mb-5 text-[42px] font-semibold leading-[1.15] tracking-[-0.03em] text-[#e2e8f0]">
+          <h1 className="mb-5 text-[36px] font-semibold leading-[1.15] tracking-[-0.03em] text-[#e2e8f0] xl:text-[42px]">
             Track time.<br />
             <span className="text-[#818cf8]">Stay aligned.</span>
           </h1>
@@ -224,7 +197,6 @@ export default function LoginPage({ onLogin }) {
           </ul>
         </div>
 
-        {/* Estadísticas con contador animado */}
         <div className="relative z-10 flex animate-[fadeUp_0.5s_ease_0.2s_both] gap-10">
           {[
             { value: empCount, suffix: '+', label: 'Employees' },
@@ -242,11 +214,11 @@ export default function LoginPage({ onLogin }) {
       </div>
 
       {/* ============================================================================
-          PANEL DERECHO — Formulario de Login
+          PANEL DERECHO — Formulario de Login (responsive)
           ============================================================================ */}
-      <div className="flex w-full shrink-0 items-center justify-center bg-[#0a0c10] p-8 lg:w-[750px]">
+      <div className="flex w-full shrink-0 items-center justify-center bg-[#0a0c10] p-4 sm:p-8 lg:w-[750px]">
         <div
-          className={`w-full max-w-[380px] animate-[fadeUp_0.4s_ease_0.05s_both] rounded-[20px] border border-[#1e2330] bg-[#111318] p-9 shadow-[0_24px_48px_rgba(0,0,0,0.5),0_0_80px_rgba(99,102,241,0.06)] ${shake ? 'anim-shake' : ''}`}
+          className={`w-full max-w-[380px] animate-[fadeUp_0.4s_ease_0.05s_both] rounded-[20px] border border-[#1e2330] bg-[#111318] p-6 shadow-[0_24px_48px_rgba(0,0,0,0.5),0_0_80px_rgba(99,102,241,0.06)] sm:p-9 ${shake ? 'anim-shake' : ''}`}
         >
 
           <div className="mb-8 text-center lg:text-left">
@@ -259,7 +231,6 @@ export default function LoginPage({ onLogin }) {
             <p className="mt-1.5 text-[13px] text-[#4a5568]">Sign in to your account to continue</p>
           </div>
 
-          {/* Error message */}
           {error && (
             <div className="mb-5 flex items-center gap-2.5 rounded-[10px] border border-[#f87171]/20 bg-[#f87171]/8 px-4 py-3 anim-fadeIn">
               <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#f87171]" />
@@ -269,7 +240,6 @@ export default function LoginPage({ onLogin }) {
 
           <form onSubmit={handleLogin} className="flex flex-col gap-5">
 
-            {/* EMAIL + Role indicator */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <label htmlFor="login-email" className="text-[12px] font-medium tracking-[0.02em] text-[#5a6478]">
@@ -289,7 +259,6 @@ export default function LoginPage({ onLogin }) {
               />
             </div>
 
-            {/* PASSWORD */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <label htmlFor="login-password" className="text-[12px] font-medium tracking-[0.02em] text-[#5a6478]">
@@ -321,7 +290,6 @@ export default function LoginPage({ onLogin }) {
               </div>
             </div>
 
-            {/* CHECKBOX */}
             <label className="flex cursor-pointer items-center gap-2.5">
               <input
                 type="checkbox"
@@ -330,7 +298,6 @@ export default function LoginPage({ onLogin }) {
               <span className="text-[12px] font-medium text-[#5a6478]">Keep me signed in</span>
             </label>
 
-            {/* SUBMIT */}
             <button
               type="submit"
               disabled={loading}
@@ -346,14 +313,12 @@ export default function LoginPage({ onLogin }) {
               )}
             </button>
 
-            {/* SEPARATOR */}
             <div className="flex items-center gap-3">
               <div className="h-px flex-1 bg-[#1e2330]" />
               <span className="text-[11px] font-medium text-[#2e3545]">OR</span>
               <div className="h-px flex-1 bg-[#1e2330]" />
             </div>
 
-            {/* SECONDARY BUTTON */}
             <button
               type="button"
               className="w-full rounded-[10px] border border-[#1e2330] bg-transparent py-[13px] text-[13px] font-medium text-[#5a6478] transition-all hover:border-[#6366f1] hover:bg-[#6366f1]/5 hover:text-[#818cf8]"
