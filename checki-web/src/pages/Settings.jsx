@@ -7,7 +7,9 @@ import {
   Info, Heart, Github, ExternalLink, X, CheckCircle2,
 } from 'lucide-react';
 import { useTheme, useTokens } from '../contexts/Themecontext';
+import { useAuth } from '../contexts/AuthContext';
 import AppLayout from '../components/AppLayout';
+import { settings as settingsApi } from '../services/api';
 
 // ============================================================================
 // TOAST / SNACKBAR
@@ -214,14 +216,26 @@ function AppearanceSection({ showToast }) {
 
 function ProfileSection({ role, showToast }) {
   const tokens = useTokens();
+  const { user, refreshUser } = useAuth();
   const isAdmin = role === 'admin';
-  const [name, setName] = useState(isAdmin ? 'Rosa Muñoz' : 'Antonio Pérez');
-  const [email, setEmail] = useState(isAdmin ? 'rosa@co.com' : 'antonio@co.com');
-  const [jobTitle, setJobTitle] = useState(isAdmin ? 'Administrator' : 'Web Designer');
-  const [dept, setDept] = useState(isAdmin ? 'Management' : 'IT');
-  const [phone, setPhone] = useState('+34 612 345 678');
+  const [name, setName] = useState(user?.name || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [jobTitle, setJobTitle] = useState(user?.job_title || '');
+  const [dept, setDept] = useState(user?.dept_name || 'IT');
+  const [phone, setPhone] = useState(user?.phone || '');
   const ini = name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
   const gradientBG = isAdmin ? 'linear-gradient(135deg,#f093fb,#f5576c)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)';
+
+  const handleSave = async () => {
+    try {
+      const deptMap = { IT: 1, Sales: 2, HR: 3, Marketing: 4, Management: 3 };
+      await settingsApi.updateProfile({ name, email, job_title: jobTitle, dept_id: deptMap[dept] || null, phone });
+      await refreshUser();
+      showToast('Profile saved successfully');
+    } catch (err) {
+      showToast(err.data?.error || 'Error saving profile', 'error');
+    }
+  };
 
   return (
     <Card>
@@ -247,7 +261,7 @@ function ProfileSection({ role, showToast }) {
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
         <button style={{ display: 'flex', alignItems: 'center', gap: 6, borderRadius: 10, border: `1px solid ${tokens.border}`, padding: '8px 16px', fontSize: 13, fontWeight: 500, color: tokens.textSecondary, background: 'none', cursor: 'pointer' }}><RotateCcw size={12} /> Reset</button>
-        <button onClick={() => showToast('Profile saved successfully')}
+        <button onClick={handleSave}
           style={{ display: 'flex', alignItems: 'center', gap: 8, borderRadius: 10, border: 'none', padding: '8px 20px', fontSize: 13, fontWeight: 600, color: '#fff', cursor: 'pointer', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', boxShadow: '0 4px 16px rgba(99,102,241,0.25)' }}><Save size={13} /> Save changes</button>
       </div>
     </Card>
@@ -262,10 +276,16 @@ function SecuritySection({ showToast }) {
   const [loginAl, setLoginAl] = useState(true);
   const strength = password.new.length === 0 ? null : password.new.length < 6 ? 'weak' : password.new.length < 10 ? 'medium' : 'strong';
   const strengthMap = { weak: { label: 'Weak', color: '#f87171', bars: 1 }, medium: { label: 'Fair', color: '#f59e0b', bars: 2 }, strong: { label: 'Strong', color: '#34d399', bars: 3 } };
-  const handleUpdatePassword = () => {
+  const handleUpdatePassword = async () => {
     if (!password.current || !password.new) { showToast('Please fill all password fields', 'error'); return; }
     if (password.new !== password.confirm) { showToast('Passwords do not match', 'error'); return; }
-    showToast('Password updated successfully'); setPassword({ current: '', new: '', confirm: '' });
+    try {
+      await settingsApi.updatePassword({ current_password: password.current, new_password: password.new });
+      showToast('Password updated successfully');
+      setPassword({ current: '', new: '', confirm: '' });
+    } catch (err) {
+      showToast(err.data?.error || 'Error updating password', 'error');
+    }
   };
 
   return (

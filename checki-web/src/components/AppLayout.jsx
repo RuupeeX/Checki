@@ -3,6 +3,7 @@ import {
   Home, Users, Calendar, BarChart2, Settings, LogOut, Menu, X,
 } from 'lucide-react';
 import { useTokens, useTheme } from '../contexts/Themecontext';
+import { useAuth } from '../contexts/AuthContext';
 import { userProfiles } from '../data/mockData';
 
 // ============================================================================
@@ -69,8 +70,17 @@ export default function AppLayout({
   }, [sidebarOpen]);
 
   const navItems = role === 'admin' ? adminNav : employeeNav;
-  const profile  = userProfiles[role] || userProfiles.employee;
   const menuTitle = role === 'admin' ? 'Main' : 'Menu';
+
+  // Usar datos reales del usuario autenticado, fallback a mockData
+  const { user: authUser } = useAuth();
+  const mockProfile = userProfiles[role] || userProfiles.employee;
+  const profile = authUser ? {
+    name: authUser.name || mockProfile.name,
+    initials: (authUser.name || mockProfile.name).split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase(),
+    role: authUser.job_title || authUser.role || mockProfile.role,
+    gradientClass: role === 'admin' ? 'from-[#f093fb] to-[#f5576c]' : 'from-[#6366f1] to-[#8b5cf6]',
+  } : mockProfile;
 
   // ── Contenido del sidebar (siempre expandido) ──
   const SidebarContent = (
