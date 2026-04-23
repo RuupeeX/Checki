@@ -221,7 +221,8 @@ INSERT INTO users (email, password, name, role, job_title, dept_id, phone, locat
   ('luis.martinez@checkin.io',      '$2a$10$placeholder', 'Luis Martínez',             'employee', 'Accountant',       5, '+34 612 005 003', 'office', '08:30:00', '17:30:00', '2023-05-10'),
   ('ana.fernandez@checkin.io',      '$2a$10$placeholder', 'Ana Fernández',             'employee', 'Designer',         4, '+34 612 005 004', 'home',   '09:00:00', '18:00:00', '2023-07-20'),
   ('sara.mendez@checkin.io',        '$2a$10$placeholder', 'Sara Méndez',               'employee', 'Sales Rep',        2, '+34 612 005 005', 'office', '08:45:00', '17:45:00', '2024-01-10'),
-  ('david.lopez@checkin.io',        '$2a$10$placeholder', 'David López',               'employee', 'Ops Manager',      6, '+34 612 005 006', 'office', '07:50:00', '16:50:00', '2022-03-01')
+  ('david.lopez@checkin.io',        '$2a$10$placeholder', 'David López',               'employee', 'Ops Manager',      6, '+34 612 005 006', 'office', '07:50:00', '16:50:00', '2022-03-01'),
+  ('jctrigoadmin@checkin.io', '$2a$10$placeholder', 'Juan Carlos Trigo', 'admin', 'Senior Admin', 1, '+34 600 000 000', 'office', '08:30:00', '17:30:00', '2026-04-22')
 ON DUPLICATE KEY UPDATE name = VALUES(name);
 
 -- Reports de ejemplo (tipos ampliados para Android)
